@@ -22,27 +22,45 @@ export default {
 		// MCPエンドポイント - GET: SSE接続開始 (/sse)
 		if (url.pathname === "/sse" && request.method === "GET") {
 			const sessionId = crypto.randomUUID();
-
-			// SSEレスポンスを即座に返す
 			const encoder = new TextEncoder();
+
+			// SSEストリームを作成（長時間接続を維持）
 			const stream = new ReadableStream({
 				start(controller) {
 					// エンドポイントイベントを送信
 					const endpointEvent = `event: endpoint\ndata: /sse?sessionId=${sessionId}\n\n`;
 					controller.enqueue(encoder.encode(endpointEvent));
 
-					// 接続確認メッセージ
-					const pingEvent = `event: message\ndata: ${JSON.stringify({
-						jsonrpc: "2.0",
-						method: "notifications/initialized",
-						params: {}
-					})}\n\n`;
-					controller.enqueue(encoder.encode(pingEvent));
+					// ハートビートを送信して接続を維持（25秒間隔で最大30分）
+					let heartbeatCount = 0;
+					const maxHeartbeats = 72; // 30分間
 
-					// ストリームを閉じない - クライアントが切断するまで維持
-					// Cloudflare Workersでは長時間接続は制限があるため、
-					// 初期イベント送信後に閉じる
-					controller.close();
+					const heartbeatInterval = setInterval(() => {
+						heartbeatCount++;
+						if (heartbeatCount >= maxHeartbeats) {
+							clearInterval(heartbeatInterval);
+							controller.close();
+							return;
+						}
+
+						try {
+							// コメント形式のハートビート（SSE仕様）
+							controller.enqueue(encoder.encode(`: heartbeat ${heartbeatCount}\n\n`));
+						} catch (e) {
+							// ストリームが閉じられた場合
+							clearInterval(heartbeatInterval);
+						}
+					}, 25000); // 25秒ごと
+
+					// クライアント切断時のクリーンアップ
+					request.signal.addEventListener("abort", () => {
+						clearInterval(heartbeatInterval);
+						try {
+							controller.close();
+						} catch (e) {
+							// 既に閉じている場合は無視
+						}
+					});
 				}
 			});
 
@@ -53,6 +71,7 @@ export default {
 					"Cache-Control": "no-cache, no-transform",
 					"Connection": "keep-alive",
 					"Access-Control-Allow-Origin": "*",
+					"X-Accel-Buffering": "no",
 				},
 			});
 		}
