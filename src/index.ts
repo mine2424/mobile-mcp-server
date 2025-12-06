@@ -8,23 +8,32 @@ import { program } from "commander";
 
 const startSseServer = async (port: number) => {
 	const app = express();
+	app.use(express.json());
 	const server = createMcpServer();
 
 	let transport: SSEServerTransport | null = null;
 
-	app.post("/mcp", (req, res) => {
-		if (transport) {
-			transport.handlePostMessage(req, res);
+	app.post("/mcp", async (req, res) => {
+		if (!transport) {
+			res.status(400).json({ error: "No SSE connection established. Please connect via GET /mcp first." });
+			return;
 		}
+		// Pass parsed body from express.json() middleware
+		await transport.handlePostMessage(req, res, req.body);
 	});
 
-	app.get("/mcp", (req, res) => {
+	app.get("/mcp", async (req, res) => {
+		// Set SSE headers explicitly
+		res.setHeader("Content-Type", "text/event-stream");
+		res.setHeader("Cache-Control", "no-cache, no-transform");
+		res.setHeader("Connection", "keep-alive");
+
 		if (transport) {
-			transport.close();
+			await transport.close();
 		}
 
 		transport = new SSEServerTransport("/mcp", res);
-		server.connect(transport);
+		await server.connect(transport);
 	});
 
 	app.listen(port, () => {
