@@ -19,8 +19,8 @@ export default {
 			});
 		}
 
-		// MCPエンドポイント - GET: SSE接続開始
-		if (url.pathname === "/mcp" && request.method === "GET") {
+		// MCPエンドポイント - GET: SSE接続開始 (/sse)
+		if (url.pathname === "/sse" && request.method === "GET") {
 			const sessionId = crypto.randomUUID();
 
 			// SSEレスポンスを即座に返す
@@ -28,7 +28,7 @@ export default {
 			const stream = new ReadableStream({
 				start(controller) {
 					// エンドポイントイベントを送信
-					const endpointEvent = `event: endpoint\ndata: /mcp?sessionId=${sessionId}\n\n`;
+					const endpointEvent = `event: endpoint\ndata: /sse?sessionId=${sessionId}\n\n`;
 					controller.enqueue(encoder.encode(endpointEvent));
 
 					// 接続確認メッセージ
@@ -57,8 +57,8 @@ export default {
 			});
 		}
 
-		// MCPエンドポイント - POST: メッセージ受信
-		if (url.pathname === "/mcp" && request.method === "POST") {
+		// MCPエンドポイント - POST: メッセージ受信 (/sse)
+		if (url.pathname === "/sse" && request.method === "POST") {
 			const sessionId = url.searchParams.get("sessionId");
 
 			if (!sessionId) {
