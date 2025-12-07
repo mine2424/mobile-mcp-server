@@ -6,7 +6,7 @@ import os from "node:os";
 import crypto from "node:crypto";
 import { execFileSync } from "node:child_process";
 
-import { error, trace } from "./logger";
+import { trace } from "./logger";
 import { AndroidRobot, AndroidDeviceManager } from "./android";
 import { ActionableError, Robot } from "./robot";
 import { SimctlManager } from "./iphone-simulator";

@@ -302,6 +302,93 @@ On iOS, you'll need Xcode and to run the Simulator before using Mobile MCP with 
 - `xcrun simctl list`
 - `xcrun simctl boot "iPhone 16"`
 
+## 🚀 Cloud Run へのデプロイ
+
+Mobile MCPサーバーをGoogle Cloud Runにデプロイして、リモートからアクセスできるようにすることができます。
+
+### 前提条件
+
+- [Google Cloud SDK](https://cloud.google.com/sdk/docs/install) がインストールされていること
+- Google Cloud プロジェクトが作成されていること
+- Container Registry API が有効になっていること
+
+### デプロイ方法
+
+#### 方法1: デプロイスクリプトを使用（推奨）
+
+```bash
+# プロジェクトIDを設定
+export GOOGLE_CLOUD_PROJECT=your-project-id
+
+# デプロイスクリプトを実行
+./cloud-run-deploy.sh
+```
+
+#### 方法2: Cloud Buildを使用
+
+```bash
+# Cloud Buildでビルドとデプロイを実行
+gcloud builds submit --config cloudbuild.yaml
+```
+
+#### 方法3: 手動でデプロイ
+
+```bash
+# Dockerイメージをビルド
+docker build -t gcr.io/YOUR_PROJECT_ID/mobile-mcp-server:latest .
+
+# Container Registryにプッシュ
+docker push gcr.io/YOUR_PROJECT_ID/mobile-mcp-server:latest
+
+# Cloud Runにデプロイ
+gcloud run deploy mobile-mcp-server \
+  --image gcr.io/YOUR_PROJECT_ID/mobile-mcp-server:latest \
+  --platform managed \
+  --region asia-northeast1 \
+  --allow-unauthenticated \
+  --port 8080 \
+  --memory 512Mi \
+  --cpu 1
+```
+
+### MCPクライアントからの接続
+
+Cloud Runにデプロイしたサーバーに接続するには、MCPクライアントの設定でHTTPエンドポイントを指定します：
+
+```json
+{
+  "mcpServers": {
+    "mobile-mcp": {
+      "url": "https://your-service-url.run.app/mcp",
+      "transport": "streamable-http"
+    }
+  }
+}
+```
+
+### 環境変数
+
+Cloud Runで以下の環境変数を設定できます：
+
+- `PORT`: サーバーのポート番号（デフォルト: 8080）
+- `ALLOWED_ORIGINS`: CORSで許可するオリジンをカンマ区切りで指定（例: `https://example.com,https://app.example.com`）。未設定の場合は`*`（すべてのオリジンを許可）
+
+例：
+```bash
+gcloud run deploy mobile-mcp-server \
+  --set-env-vars ALLOWED_ORIGINS=https://example.com,https://app.example.com \
+  ...
+```
+
+### 注意事項
+
+- Cloud Runでは、Streamable HTTPトランスポートのみがサポートされています（stdioトランスポートは使用できません）
+- デフォルトでは、サーバーはStreamable HTTPトランスポートで起動します
+- ヘルスチェックエンドポイント: `https://your-service-url.run.app/health`
+- セキュリティのため、本番環境では`ALLOWED_ORIGINS`環境変数でCORSを制限することを推奨します
+
+詳細については、[Google Cloud Run のドキュメント](https://docs.cloud.google.com/run/docs/host-mcp-servers?hl=ja)を参照してください。
+
 # Thanks to all contributors ❤️
 
 ### We appreciate everyone who has helped improve this project.

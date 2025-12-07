@@ -1,0 +1,19 @@
+# .gcloudignore
+.git
+.gitignore
+node_modules
+npm-debug.log
+.env
+.nyc_output
+coverage
+.vscode
+.idea
+*.log
+test
+wrangler.jsonc
+mobile-mcp.png
+README.md
+CHANGELOG.md
+SECURITY.md
+LICENSE
+
